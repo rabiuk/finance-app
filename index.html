@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Finance</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -53,7 +53,8 @@
 :root[data-theme="light"] { color-scheme: light; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { background: var(--bg); }
+html, body { background: var(--bg); touch-action: manipulation; } /* no double-tap zoom */
+button, .tabs, .chip { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 body {
   color: var(--ink); font-family: var(--font); font-size: 15px; font-weight: 600; line-height: 1.3;
   -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; font-variant-numeric: tabular-nums;
@@ -127,6 +128,30 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .cat .bot { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 600; color: var(--ink2); margin-top: 8px; }
 .c-over { color: var(--red); } .c-near { color: var(--amber); }
 .f-over { background: var(--red); } .f-near { background: var(--amber); } .f-ok { background: var(--barok); }
+
+/* Tappable rows */
+.tap { display: block; width: 100%; text-align: left; border-radius: 0; }
+.tap:active { opacity: .6; }
+.chev { width: 8px; height: 13px; flex: none; color: var(--ink3); margin-left: 2px; }
+.cat .top .r { display: flex; align-items: center; gap: 8px; }
+
+/* Purchases sheet */
+.sheet-bg { position: fixed; inset: 0; background: rgba(8,10,16,.45); z-index: 10; opacity: 0; pointer-events: none; transition: opacity .22s; }
+.sheet-bg.open { opacity: 1; pointer-events: auto; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; max-width: 480px; margin: 0 auto; max-height: 88vh; display: flex; flex-direction: column;
+  background: var(--bg); border-radius: 30px 30px 0 0; border: 1px solid var(--line); border-bottom: 0;
+  transform: translateY(105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.sheet.open { transform: none; }
+.sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line2); margin: 8px auto 0; flex: none; }
+.sheet .sh-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 22px 4px; flex: none; touch-action: none; }
+.sheet .sh-head h3 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+.sheet .sh-head p { font-size: 15px; font-weight: 600; color: var(--ink2); margin-top: 2px; }
+.sheet .sh-bar { margin: 12px 22px 0; flex: none; }
+.sheet .seg { display: flex; gap: 4px; margin: 16px 12px 12px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; flex: none; }
+.sheet .seg button { flex: 1; height: 36px; border-radius: 18px; font-size: 14px; font-weight: 700; color: var(--ink3); }
+.sheet .seg button[aria-pressed="true"] { background: var(--tabOn); color: var(--ink); }
+.sheet .sh-body { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-bottom: 24px; }
+.tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--accT); background: var(--accSoft); border-radius: 6px; padding: 2px 6px; margin-left: 6px; vertical-align: 1px; }
 
 /* Activity */
 .day { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 24px 22px 10px; }
@@ -217,6 +242,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="14" rx="3.5" stroke="currentColor" stroke-width="2.4"/><rect x="3.5" y="10.3" width="17" height="2.4" fill="currentColor"/></svg><span>Net worth</span></button>
 </nav>
 <div class="toast" id="toast" role="status"></div>
+<div class="sheet-bg" id="sheetBg"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Purchases" aria-hidden="true"></section>
 
 <script>
 // ---------------------------------------------------------------- Setup
@@ -276,13 +303,13 @@ function viewBudget() {
     '<div class="chip near"><b>' + n.near + '</b><span>near</span></div>' +
     '<div class="chip ok"><b>' + n.ok + '</b><span>on track</span></div></div>';
 
-  h += sec('Categories', 'Most urgent first') + '<div class="group">';
+  h += sec('Categories', DATA.txns ? 'Tap to see purchases' : 'Most urgent first') + '<div class="group">';
   flex.forEach(function (r) {
     var diff = r.cap - r.actual;
-    h += '<div class="cat"><div class="top"><div class="nm">' + esc(r.category) + '</div>' +
-      '<div class="st ' + (r.st === 'ok' ? '' : 'c-' + r.st) + '">' + money(diff) + (diff < 0 ? ' over' : ' left') + '</div></div>' +
+    h += '<button class="cat tap" data-cat="' + esc(r.category) + '"><div class="top"><div class="nm">' + esc(r.category) + '</div>' +
+      '<div class="r"><div class="st ' + (r.st === 'ok' ? '' : 'c-' + r.st) + '">' + money(diff) + (diff < 0 ? ' over' : ' left') + '</div>' + CHEV + '</div></div>' +
       '<div class="bar"><i class="f-' + r.st + '" style="width:' + pctW(r.p) + '"></i><u style="left:' + pctW(tick) + '"></u></div>' +
-      '<div class="bot"><span>' + money(r.actual) + ' of ' + money(r.cap) + '</span><span>' + Math.round(r.p * 100) + '%</span></div></div>';
+      '<div class="bot"><span>' + money(r.actual) + ' of ' + money(r.cap) + '</span><span>' + Math.round(r.p * 100) + '%</span></div></button>';
   });
   if (!flex.length) h += '<div class="empty">No caps set yet. Add caps on the Goals tab of the sheet.</div>';
   h += '</div>';
@@ -299,7 +326,7 @@ function viewBudget() {
     var tot = nocap.reduce(function (s, r) { return s + r.actual; }, 0);
     h += sec('No cap', money(tot) + ' so far') + '<div class="group" style="padding:0 18px">';
     nocap.forEach(function (r) {
-      h += '<div class="row" style="min-height:66px"><div class="l"><div class="t">' + esc(r.category) + '</div><div class="s">This month</div></div><div class="a">' + money(r.actual) + '</div></div>';
+      h += '<button class="row tap" style="min-height:66px;display:flex" data-cat="' + esc(r.category) + '"><div class="l"><div class="t">' + esc(r.category) + '</div><div class="s">This month</div></div><div style="display:flex;align-items:center;gap:8px"><div class="a">' + money(r.actual) + '</div>' + CHEV + '</div></button>';
     });
     h += '</div>';
   }
@@ -432,6 +459,82 @@ function viewWorth() {
   return h;
 }
 
+// ---------------------------------------------------------------- Purchases sheet
+var CHEV = '<svg class="chev" viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 1.5l5 5-5 5"/></svg>';
+var SHEET = { cat: null, sort: 'new' };
+function titleCase(s) { return s.toLowerCase().replace(/(^|[\s\-\/(&])([a-z])/g, function (m, p, c) { return p + c.toUpperCase(); }); }
+var US_STATES = 'AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC';
+var CITY_STATE = new RegExp(',?\\s+[A-Za-z.]+(?:\\s[A-Za-z.]+)?,?\\s+(?:' + US_STATES + ')(?:\\s+US)?$');
+function cleanDesc(raw) {
+  var s = String(raw || '').trim();
+  s = s.replace(/^(debit|digital)\s+card\s+purchase\s*-\s*/i, '').replace(/^withdrawal from\s+/i, '').replace(/^purchase authorized on \S+\s+/i, '');
+  s = s.replace(/^(TST|SQ|SP|PY|DD)\s*\*\s*/i, '');
+  s = s.replace(/\*\s*[A-Z0-9]{6,}\b/g, '');                 // order codes: Amazon.com*596B74U82
+  s = s.replace(/\s+[A-Z0-9]*\d[A-Z0-9]{5,}\b.*$/, '');       // reference codes and anything after
+  s = s.replace(/\s+\d{3}[-\s]?\d{3}[-\s]?\d{4}\b.*$/, '');   // phone numbers and anything after
+  s = s.replace(/\s+(#|T-?\s?)\d+.*$/, '');                    // store numbers: #569, T-1422
+  s = s.replace(/#\w*\d\w*.*$/, '');                           // ARCO#05369FD GAS
+  s = s.replace(CITY_STATE, '');                              // " SEATTLE, WA US"
+  s = s.replace(/\s+\d{3,}$/, '').replace(/\s*\*\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  if (!s) s = String(raw || '').trim();
+  return s === s.toUpperCase() ? titleCase(s) : s;
+}
+function niceDay(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? MON[Number(m[2]) - 1] + ' ' + Number(m[3]) : iso; }
+function openSheet(cat) {
+  if (!DATA || !DATA.txns) return;
+  SHEET.cat = cat; SHEET.sort = 'new'; drawSheet();
+  document.body.style.overflow = 'hidden';
+  $('sheetBg').classList.add('open'); $('sheet').classList.add('open'); $('sheet').setAttribute('aria-hidden', 'false');
+  setTimeout(function () { var c = $('sheetClose'); if (c) c.focus(); }, 300);
+}
+function closeSheet() {
+  document.body.style.overflow = '';
+  $('sheetBg').classList.remove('open'); $('sheet').classList.remove('open'); $('sheet').setAttribute('aria-hidden', 'true');
+  SHEET.cat = null;
+}
+function drawSheet() {
+  var cat = SHEET.cat, rows = (DATA.txns || []).filter(function (t) { return t.cat === cat; });
+  rows = rows.slice().sort(SHEET.sort === 'big'
+    ? function (a, b) { return a.amt - b.amt; }
+    : function (a, b) { return a.iso < b.iso ? 1 : a.iso > b.iso ? -1 : (b.live ? 1 : 0) - (a.live ? 1 : 0); });
+  var spent = -rows.reduce(function (s, t) { return s + t.amt; }, 0);
+  var capRow = ((DATA.caps || {}).rows || []).filter(function (r) { return r.category === cat; })[0];
+  var cap = capRow && capRow.cap > 0 ? capRow.cap : 0;
+  var shown = capRow ? capRow.actual : spent;
+  var sub = cap ? money(shown) + ' of ' + money(cap) + ' · ' + Math.round(shown / cap * 100) + '%' : money(shown) + ' this month';
+  sub += ' · ' + rows.length + ' purchase' + (rows.length === 1 ? '' : 's');
+  var h = '<div class="grab"></div><div class="sh-head" id="sheetHead"><div style="min-width:0"><h3>' + esc(cat) + '</h3><p>' + esc(sub) + '</p></div>' +
+    '<button class="tool" id="sheetClose" aria-label="Close">✕</button></div>';
+  if (cap) {
+    var st = shown > cap ? 'over' : shown >= NEAR_AT * cap ? 'near' : 'ok', t = today();
+    h += '<div class="sh-bar cat" style="padding:0;border:0;margin-bottom:0"><div class="bar"><i class="f-' + st + '" style="width:' + pctW(shown / cap) + '"></i><u style="left:' + pctW(t.getDate() / daysIn(t.getFullYear(), t.getMonth())) + ';box-shadow:0 0 0 2px var(--bg)"></u></div></div>';
+  }
+  h += '<div class="seg" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="' + (SHEET.sort === 'new') + '">Newest</button><button data-sort="big" aria-pressed="' + (SHEET.sort === 'big') + '">Biggest</button></div>';
+  h += '<div class="sh-body">';
+  if (!rows.length) h += '<div class="group"><div class="empty">No purchases in ' + esc(cat) + ' yet this month.</div></div>';
+  else {
+    h += '<div class="group">';
+    rows.forEach(function (x) {
+      var name = cleanDesc(x.desc), initial = (name.replace(/[^A-Za-z0-9]/g, '')[0] || '$').toUpperCase();
+      h += '<div class="tx"><div class="av">' + esc(initial) + '</div><div class="mid"><div class="m">' + esc(name) + '</div>' +
+        '<div class="x">' + esc(niceDay(x.iso)) + ' · ' + esc(shortAcct(x.acct)) + (x.live ? '<span class="tag">Pending</span>' : '') + '</div></div>' +
+        '<div class="amt' + (x.amt > 0 ? ' in' : '') + '">' + signed(x.amt, true) + '</div></div>';
+    });
+    h += '</div><div class="note">Pending = from a card alert, not yet in your bank history.</div>';
+  }
+  h += '</div>';
+  $('sheet').innerHTML = h;
+  $('sheetClose').onclick = closeSheet;
+  Array.prototype.forEach.call($('sheet').querySelectorAll('.seg button'), function (b) {
+    b.onclick = function () { SHEET.sort = b.getAttribute('data-sort'); drawSheet(); };
+  });
+  // Swipe down on the header to close.
+  var head = $('sheetHead'), y0 = null;
+  head.addEventListener('touchstart', function (e) { y0 = e.touches[0].clientY; }, { passive: true });
+  head.addEventListener('touchmove', function (e) { if (y0 !== null && e.touches[0].clientY - y0 > 70) { y0 = null; closeSheet(); } }, { passive: true });
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && SHEET.cat) closeSheet(); });
+
 // ---------------------------------------------------------------- Shell
 function longDate(d) { return WEEKDAYS[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate(); }
 function fit(str, base, chars) { // shrink hero numbers so long amounts stay on one line at 390pt
@@ -464,6 +567,7 @@ function render() {
   html += '<div class="note" style="text-align:center;padding-top:26px">Updated ' + esc(DATA.generatedAt || 'just now') + ' · tap ↻ to refresh</div>';
   $('screen').innerHTML = html;
   wire();
+  if (SHEET.cat) drawSheet();
 }
 function shell(eyebrow, title, body) { $('screen').innerHTML = head(eyebrow, title) + body; wire(); }
 function wire() {
@@ -471,6 +575,7 @@ function wire() {
   if (tb) tb.onclick = function () { applyTheme(THEMES[(THEMES.indexOf(THEME) + 1) % 3], true); };
   if (rb) rb.onclick = load;
   if (tx) tx.onclick = function () { try { localStorage.setItem('tipOff', '1'); } catch (e) {} $('tip').remove(); };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-cat]'), function (b) { b.onclick = function () { openSheet(b.getAttribute('data-cat')); }; });
 }
 function applyTheme(t, announce) {
   THEME = THEMES.indexOf(t) >= 0 ? t : 'auto';
@@ -517,11 +622,14 @@ Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
     if (DATA) render();
   };
 });
+$('sheetBg').onclick = closeSheet;
 // Refresh when the app comes back to the foreground after a while.
 var hiddenAt = 0;
 document.addEventListener('visibilitychange', function () {
   if (document.hidden) hiddenAt = Date.now(); else if (hiddenAt && Date.now() - hiddenAt > 60000) load();
 });
+// Block pinch zoom, so it behaves like an app (Safari ignores user-scalable=no on its own).
+document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
 try { THEME = localStorage.getItem('theme') || 'auto'; } catch (e) {}
 applyTheme(THEME, false);
 load();

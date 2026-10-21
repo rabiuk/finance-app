@@ -191,6 +191,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .ok-ic { width: 18px; height: 18px; flex: none; color: var(--pos); }
 .hero .num.st { font-size: 64px; margin: 10px 0 0 -2px; letter-spacing: -0.05em; }
 .hero .num.warn { color: #F2C46D; }
+.hero .num.good { color: #7ED9A0; }
 /* Collapsible card (Rent & bills) */
 .acc-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 76px; text-align: left; }
 .acc-h .t { font-size: 17px; font-weight: 700; }
@@ -367,7 +368,7 @@ function viewHome() {
 
   // Joint check
   var st = J.status, big, sub, cls = '';
-  if (st === 'covered') { big = 'Covered'; sub = '<b>' + money(J.projection) + '</b><span>left after everything due by ' + niceDay(J.horizonEnd) + '</span>'; }
+  if (st === 'covered') { big = 'Covered'; cls = ' good'; sub = '<b>' + money(J.projection) + '</b><span>left after everything due by ' + niceDay(J.horizonEnd) + '</span>'; }
   else if (st === 'short') { big = 'Short'; cls = ' neg'; sub = '<b style="color:#F08A76">' + money(J.projection) + '</b><span>short for bills due by ' + niceDay(J.horizonEnd) + ', even after both deposits</span>'; }
   else if (st === 'overdrawn') { big = 'Overdrawn'; cls = ' neg'; sub = '<span>Waiting on ' + J.late.map(function (w) { return w === 'Kenny' ? 'your' : w + '’s'; }).join(' and ') + ' deposit</span>'; }
   else { big = 'Waiting'; cls = ' warn'; sub = '<span>On ' + J.late.map(function (w) { return w === 'Kenny' ? 'your' : w + '’s'; }).join(' and ') + ' deposit (due ' + niceDay(J.depositDue) + ')</span>'; }

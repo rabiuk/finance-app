@@ -337,6 +337,8 @@ function viewBudget() {
   if (!flex.length) h += '<div class="empty">No caps set yet. Add caps on the Goals tab of the sheet.</div>';
   h += '</div>';
 
+  h += myBillsHtml(c.month);
+
   if (nocap.length) {
     var tot = nocap.reduce(function (s, r) { return s + r.actual; }, 0);
     h += sec('No cap', money(tot) + ' so far') + '<div class="group" style="padding:0 18px">';
@@ -345,6 +347,40 @@ function viewBudget() {
     });
     h += '</div>';
   }
+  return h;
+}
+
+// My bills: Kenny's own monthly bills from the Recurring tab (rows with a Due day and a Match).
+// A bill counts as paid when a purchase this month matches its Match text.
+var MYBILLS_OPEN = false; try { MYBILLS_OPEN = localStorage.getItem('myBillsOpen') === '1'; } catch (e) {}
+function myBillsHtml(month) {
+  var B = DATA.bills, tx = DATA.txns || [], t = today();
+  if (!B || !B.length) return '';
+  var ym = /^\d{4}-\d{2}$/.test(month || '') ? month : t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2);
+  var cur = ym === t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2);
+  var list = B.map(function (b) {
+    var re = null; try { re = new RegExp(b.match, 'i'); } catch (e) {}
+    var hits = re ? tx.filter(function (x) { return x.amt < 0 && re.test(x.desc); }) : [];
+    var paidAmt = -hits.reduce(function (s, x) { return s + x.amt; }, 0);
+    var last = hits.reduce(function (m, x) { return x.iso > m ? x.iso : m; }, '');
+    var dueIso = ym + '-' + ('0' + Math.min(b.due, 28)).slice(-2);
+    return { name: b.name, amount: b.amount, due: b.due, dueIso: dueIso, paid: hits.length > 0, paidAmt: paidAmt, paidIso: last,
+             late: !hits.length && (!cur || t.getDate() > b.due) };
+  }).sort(function (a, b) { return a.due - b.due; });
+  var total = list.reduce(function (s, b) { return s + (b.paid ? b.paidAmt : b.amount); }, 0);
+  var nPaid = list.filter(function (b) { return b.paid; }).length;
+  var toPay = list.reduce(function (s, b) { return s + (b.paid ? 0 : b.amount); }, 0);
+  var h = sec('My bills', 'This month') +
+    '<div class="group acc' + (MYBILLS_OPEN ? ' open' : '') + '" id="myBillsAcc"><button class="acc-h tap" id="myBillsBtn" aria-expanded="' + MYBILLS_OPEN + '" aria-controls="myBillsBody">' +
+    '<div class="l"><div class="t">Total</div><div class="s">' + nPaid + ' of ' + list.length + ' paid' + (toPay > 0 ? ' · ' + money(toPay) + ' to go' : '') + '</div></div>' +
+    '<div style="display:flex;align-items:center;gap:8px"><div class="tot">' + money(total) + '</div>' + CHEV + '</div></button>' +
+    '<div class="acc-b" id="myBillsBody"><div>';
+  list.forEach(function (b) {
+    var s = b.paid ? 'Paid ' + niceDay(b.paidIso) : b.late ? 'Not seen yet · due ' + niceDay(b.dueIso) : 'Due ' + niceDay(b.dueIso);
+    h += '<div class="row"><div class="l"><div class="t">' + esc(b.name) + '</div><div class="s">' + esc(s) + '</div></div>' +
+      '<div class="a' + (b.paid ? ' paid' : '') + '">' + (b.paid ? ICON_OK : '') + money(b.paid ? b.paidAmt : b.amount, true) + '</div></div>';
+  });
+  h += '</div></div></div><div class="note">From checking 5321. Bank withdrawals show after the Monday import.</div>';
   return h;
 }
 
@@ -685,6 +721,12 @@ function wire() {
     BILLS_OPEN = !BILLS_OPEN;
     $('billsAcc').classList.toggle('open', BILLS_OPEN); bb.setAttribute('aria-expanded', String(BILLS_OPEN));
     try { localStorage.setItem('billsOpen', BILLS_OPEN ? '1' : '0'); } catch (e) {}
+  };
+  var mb = $('myBillsBtn');
+  if (mb) mb.onclick = function () {
+    MYBILLS_OPEN = !MYBILLS_OPEN;
+    $('myBillsAcc').classList.toggle('open', MYBILLS_OPEN); mb.setAttribute('aria-expanded', String(MYBILLS_OPEN));
+    try { localStorage.setItem('myBillsOpen', MYBILLS_OPEN ? '1' : '0'); } catch (e) {}
   };
   Array.prototype.forEach.call(document.querySelectorAll('[data-goto]'), function (b) { b.onclick = function () { goTab(b.getAttribute('data-goto')); }; });
 }

@@ -191,6 +191,18 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .ok-ic { width: 18px; height: 18px; flex: none; color: var(--pos); }
 .hero .num.st { font-size: 64px; margin: 10px 0 0 -2px; letter-spacing: -0.05em; }
 .hero .num.warn { color: #F2C46D; }
+/* Collapsible card (Rent & bills) */
+.acc-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 76px; text-align: left; }
+.acc-h .t { font-size: 17px; font-weight: 700; }
+.acc-h .s { font-size: 14px; font-weight: 600; color: var(--ink2); margin-top: 2px; }
+.acc-h .tot { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+.acc-h .chev { transition: transform .28s ease; }
+.acc.open .acc-h .chev { transform: rotate(90deg); }
+.acc-b { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
+.acc.open .acc-b { grid-template-rows: 1fr; }
+.acc-b > div { overflow: hidden; min-height: 0; }
+.acc-b .row:first-child { border-top: 1px solid var(--line); }
+.acc-b .row:last-child { border-bottom: 0; margin-bottom: 0; }
 
 /* Net worth */
 .comp { display: flex; gap: 3px; height: 16px; margin-top: 20px; }
@@ -346,6 +358,7 @@ function viewBudget() {
 // Everything here comes from the Joint tab, which the alert script updates every 5 minutes.
 var ICON_OK = '<svg class="ok-ic" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8.2" stroke-width="2"/><path d="M6.3 10.3l2.4 2.4 5-5.2"/></svg>';
 var JCARD = '__jointcard';
+var BILLS_OPEN = false; try { BILLS_OPEN = localStorage.getItem('billsOpen') === '1'; } catch (e) {}
 function who(w) { return w === 'Kenny' ? 'You' : w; }
 function viewHome() {
   var J = DATA.joint, t = today();
@@ -372,10 +385,16 @@ function viewHome() {
   });
   h += '</div>';
 
-  // Rent & bills
-  var halfSum = J.bills.reduce(function (s, b) { return s + b.half; }, 0);
-  h += sec('Rent & bills', 'Your half ' + money(halfSum)) + '<div class="group">';
-  J.bills.concat([J.cardBill]).forEach(function (b) {
+  // Rent & bills: one card with the month's total. Tap to open the list.
+  var all = J.bills.concat([J.cardBill]);
+  var total = all.reduce(function (s, b) { return s + (b.paid ? b.paidAmt : b.amount); }, 0);
+  var nPaid = all.filter(function (b) { return b.paid; }).length;
+  h += sec('Rent & bills', 'This month') +
+    '<div class="group acc' + (BILLS_OPEN ? ' open' : '') + '" id="billsAcc"><button class="acc-h tap" id="billsBtn" aria-expanded="' + BILLS_OPEN + '" aria-controls="billsBody">' +
+    '<div class="l"><div class="t">Total</div><div class="s">Your half ' + money(total * J.share) + ' · ' + nPaid + ' of ' + all.length + ' paid</div></div>' +
+    '<div style="display:flex;align-items:center;gap:8px"><div class="tot">' + money(total) + '</div>' + CHEV + '</div></button>' +
+    '<div class="acc-b" id="billsBody"><div>';
+  all.forEach(function (b) {
     var s;
     if (b.paid) s = 'Paid ' + niceDay(b.paidIso);
     else if (b.late) s = 'Not seen yet · due ' + niceDay(J.curMonth + '-' + ('0' + b.dueDay).slice(-2));
@@ -384,7 +403,7 @@ function viewHome() {
     h += '<div class="row"><div class="l"><div class="t">' + esc(b.name) + '</div><div class="s">' + esc(s) + '</div></div>' +
       '<div class="a' + (b.paid ? ' paid' : '') + '">' + (b.paid ? ICON_OK : '') + money(b.paid ? b.paidAmt : b.amount) + '</div></div>';
   });
-  h += '</div>';
+  h += '</div></div></div>';
 
   // Shared card
   var C = J.card, p = C.budget ? C.spent / C.budget : 0, cst = p > 1 ? 'over' : p >= NEAR_AT ? 'near' : 'ok', left = C.budget - C.spent;
@@ -665,6 +684,12 @@ function wire() {
   if (tx) tx.onclick = function () { try { localStorage.setItem('tipOff', '1'); } catch (e) {} $('tip').remove(); };
   Array.prototype.forEach.call(document.querySelectorAll('[data-cat]'), function (b) { b.onclick = function () { openSheet(b.getAttribute('data-cat')); }; });
   Array.prototype.forEach.call(document.querySelectorAll('[data-joint]'), function (b) { b.onclick = function () { openSheet(JCARD); }; });
+  var bb = $('billsBtn');
+  if (bb) bb.onclick = function () {
+    BILLS_OPEN = !BILLS_OPEN;
+    $('billsAcc').classList.toggle('open', BILLS_OPEN); bb.setAttribute('aria-expanded', String(BILLS_OPEN));
+    try { localStorage.setItem('billsOpen', BILLS_OPEN ? '1' : '0'); } catch (e) {}
+  };
   Array.prototype.forEach.call(document.querySelectorAll('[data-goto]'), function (b) { b.onclick = function () { goTab(b.getAttribute('data-goto')); }; });
 }
 function applyTheme(t, announce) {

@@ -185,6 +185,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .pill { flex: none; height: 32px; padding: 0 12px; border-radius: 16px; display: flex; align-items: center; font-size: 15px; font-weight: 800; }
 .pill.pos { background: var(--posTint); color: var(--pos); }
 .pill.neg { background: color-mix(in oklch, var(--red) 14%, transparent); color: var(--red); }
+.pill.wait { background: color-mix(in oklch, var(--amber) 16%, transparent); color: var(--amber); }
+.pill.sm { height: 28px; font-size: 13px; padding: 0 10px; }
+.row .a.paid { display: flex; align-items: center; gap: 6px; }
+.ok-ic { width: 18px; height: 18px; flex: none; color: var(--pos); }
+.hero .num.st { font-size: 64px; margin: 10px 0 0 -2px; letter-spacing: -0.05em; }
+.hero .num.warn { color: #F2C46D; }
 
 /* Net worth */
 .comp { display: flex; gap: 3px; height: 16px; margin-top: 20px; }
@@ -235,6 +241,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 <nav class="tabs" role="tablist" aria-label="Sections">
   <button class="tab" role="tab" data-tab="budget" aria-selected="true">
     <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg><span>Budget</span></button>
+  <button class="tab" role="tab" data-tab="home" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 19z"/><path d="M9.5 20.5v-5.5h5v5.5" fill="currentColor"/></svg><span>Home</span></button>
   <button class="tab" role="tab" data-tab="activity" aria-selected="false">
     <svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="5.5" width="16" height="2.6" rx="1.3"/><rect x="4" y="10.7" width="16" height="2.6" rx="1.3"/><rect x="4" y="15.9" width="10" height="2.6" rx="1.3"/></svg><span>Activity</span></button>
   <button class="tab" role="tab" data-tab="trends" aria-selected="false">
@@ -318,8 +326,8 @@ function viewBudget() {
   if (fixed.length) {
     h += sec('Fixed') + '<div class="group" style="padding:0 18px">';
     fixed.forEach(function (r) {
-      h += '<div class="row"><div class="l"><div class="t">' + esc(r.category) + '</div><div class="s">Monthly transfer · ' + money(r.actual) + ' sent this month</div></div>' +
-        '<div class="a">' + money(r.cap) + '<small>/mo</small></div></div>';
+      h += '<button class="row tap" style="min-height:68px;display:flex;width:100%;text-align:left" data-goto="home"><div class="l"><div class="t">Joint deposit</div><div class="s">' + money(r.actual) + ' sent this month · see Home</div></div>' +
+        '<div style="display:flex;align-items:center;gap:8px"><div class="a">' + money(r.cap) + '<small>/mo</small></div>' + CHEV + '</div></button>';
     });
     h += '</div>';
   }
@@ -332,6 +340,82 @@ function viewBudget() {
     h += '</div>';
   }
   return h;
+}
+
+// ---------------------------------------------------------------- Home (joint plan with Taiwo)
+// Everything here comes from the Joint tab, which the alert script updates every 5 minutes.
+var ICON_OK = '<svg class="ok-ic" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8.2" stroke-width="2"/><path d="M6.3 10.3l2.4 2.4 5-5.2"/></svg>';
+var JCARD = '__jointcard';
+function who(w) { return w === 'Kenny' ? 'You' : w; }
+function viewHome() {
+  var J = DATA.joint, t = today();
+  if (!J || !J.bills) return head('Joint with Taiwo', 'Home') + '<div class="msg"><b>The joint plan is not ready yet</b><p>The Joint tab of the sheet fills in within 5 minutes.</p></div>';
+  var h = head('Joint with Taiwo', 'Home');
+
+  // Joint check
+  var st = J.status, big, sub, cls = '';
+  if (st === 'covered') { big = 'Covered'; sub = '<b>' + money(J.projection) + '</b><span>left after everything due by ' + niceDay(J.horizonEnd) + '</span>'; }
+  else if (st === 'short') { big = 'Short'; cls = ' neg'; sub = '<b style="color:#F08A76">' + money(J.projection) + '</b><span>short for bills due by ' + niceDay(J.horizonEnd) + ', even after both deposits</span>'; }
+  else if (st === 'overdrawn') { big = 'Overdrawn'; cls = ' neg'; sub = '<span>Waiting on ' + J.late.map(function (w) { return w === 'Kenny' ? 'your' : w + '’s'; }).join(' and ') + ' deposit</span>'; }
+  else { big = 'Waiting'; cls = ' warn'; sub = '<span>On ' + J.late.map(function (w) { return w === 'Kenny' ? 'your' : w + '’s'; }).join(' and ') + ' deposit (due ' + niceDay(J.depositDue) + ')</span>'; }
+  h += '<section class="hero"><div class="eb">Joint check</div><div class="num st' + cls + '">' + big + '</div>' +
+    '<div class="sub2">' + sub + '</div>' +
+    '<div class="meta"><span>Joint now ' + (J.balance < 0 ? '−' : '') + money(J.balance) + '</span><span>Bank data through ' + niceDay(J.dataThrough || J.balanceAsOf) + '</span></div></section>';
+
+  // Deposits
+  h += sec('Deposits for ' + J.depositMonth, 'Due ' + niceDay(J.depositDue)) + '<div class="group">';
+  J.deposits.forEach(function (d) {
+    var late = !d.done && J.today > J.depositDue;
+    h += '<div class="row"><div class="l"><div class="t">' + esc(who(d.who)) + '</div><div class="s">' +
+      (d.done ? money(d.received) + ' in · ' + niceDay(d.dates[d.dates.length - 1]) : d.received > 0 ? money(d.received) + ' of ' + money(d.target) + ' in' : money(d.target) + ' due ' + niceDay(J.depositDue)) + '</div></div>' +
+      '<div class="pill sm ' + (d.done ? 'pos' : late ? 'neg' : 'wait') + '">' + (d.done ? 'In' : late ? 'Late' : 'Not in yet') + '</div></div>';
+  });
+  h += '</div>';
+
+  // Rent & bills
+  var halfSum = J.bills.reduce(function (s, b) { return s + b.half; }, 0);
+  h += sec('Rent & bills', 'Your half ' + money(halfSum)) + '<div class="group">';
+  J.bills.concat([J.cardBill]).forEach(function (b) {
+    var s;
+    if (b.paid) s = 'Paid ' + niceDay(b.paidIso);
+    else if (b.late) s = 'Not seen yet · due ' + niceDay(J.curMonth + '-' + ('0' + b.dueDay).slice(-2));
+    else s = (b.auto ? 'AutoPay ' : 'Due ') + niceDay(b.due);
+    s += b.auto ? ' · card balance' : ' · your half ' + money(b.half);
+    h += '<div class="row"><div class="l"><div class="t">' + esc(b.name) + '</div><div class="s">' + esc(s) + '</div></div>' +
+      '<div class="a' + (b.paid ? ' paid' : '') + '">' + (b.paid ? ICON_OK : '') + money(b.paid ? b.paidAmt : b.amount) + '</div></div>';
+  });
+  h += '</div>';
+
+  // Shared card
+  var C = J.card, p = C.budget ? C.spent / C.budget : 0, cst = p > 1 ? 'over' : p >= NEAR_AT ? 'near' : 'ok', left = C.budget - C.spent;
+  var tick = t.getDate() / daysIn(t.getFullYear(), t.getMonth());
+  h += sec('Shared card', 'Tap to see purchases') + '<div class="group">' +
+    '<button class="cat tap" data-joint="card"><div class="top"><div class="nm">Joint card · ' + esc(J.monthName) + '</div>' +
+    '<div class="r"><div class="st ' + (cst === 'ok' ? '' : 'c-' + cst) + '">' + money(left) + (left < 0 ? ' over' : ' left') + '</div>' + CHEV + '</div></div>' +
+    '<div class="bar"><i class="f-' + cst + '" style="width:' + pctW(p) + '"></i><u style="left:' + pctW(tick) + '"></u></div>' +
+    '<div class="bot"><span>' + money(C.spent) + ' of ' + money(C.budget) + ' · your half ' + money(C.half) + '</span><span>' + Math.round(p * 100) + '%</span></div></button></div>';
+
+  // Pay back
+  if (J.payback && J.payback.length) {
+    var pb = J.payback.reduce(function (s, x) { return s - x.amt; }, 0);
+    h += sec('Pay back', money(pb, true)) + '<div class="group">';
+    J.payback.forEach(function (x) {
+      var name = x.name || cleanDesc(x.desc);
+      h += '<div class="tx"><div class="av">' + esc((name[0] || '$').toUpperCase()) + '</div><div class="mid"><div class="m">' + esc(name) + '</div>' +
+        '<div class="x">' + esc(niceDay(x.iso)) + ' · joint debit</div></div><div class="amt">' + signed(x.amt, true) + '</div></div>';
+    });
+    h += '</div><div class="note">Fun stuff on the joint debit. Whoever spent it puts it back, then logs it under Settled pay backs on the Joint tab.</div>';
+  }
+
+  // Coming up
+  if (J.upcoming && J.upcoming.length) {
+    h += sec('Coming up', money(J.dueTotal) + ' by ' + niceDay(J.horizonEnd)) + '<div class="group">';
+    J.upcoming.forEach(function (u) {
+      h += '<div class="row" style="min-height:58px"><div class="l"><div class="t" style="font-size:16px">' + esc(u.name) + '</div><div class="s">' + (u.late ? 'Not seen yet' : niceDay(u.iso)) + '</div></div><div class="a" style="font-size:16px">' + money(u.amount) + '</div></div>';
+    });
+    h += '</div>';
+  }
+  return h + '<div class="note">Joint debit numbers update after the Monday import. Joint card purchases show within minutes.</div>';
 }
 
 // ---------------------------------------------------------------- Activity
@@ -482,7 +566,7 @@ function cleanDesc(raw) {
 }
 function niceDay(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? MON[Number(m[2]) - 1] + ' ' + Number(m[3]) : iso; }
 function openSheet(cat) {
-  if (!DATA || !DATA.txns) return;
+  if (!DATA || (cat === JCARD ? !(DATA.joint && DATA.joint.card) : !DATA.txns)) return;
   SHEET.cat = cat; SHEET.sort = 'new'; drawSheet();
   document.body.style.overflow = 'hidden';
   $('sheetBg').classList.add('open'); $('sheet').classList.add('open'); $('sheet').setAttribute('aria-hidden', 'false');
@@ -494,17 +578,20 @@ function closeSheet() {
   SHEET.cat = null;
 }
 function drawSheet() {
-  var cat = SHEET.cat, rows = (DATA.txns || []).filter(function (t) { return t.cat === cat; });
+  var cat = SHEET.cat, isJ = cat === JCARD, J = DATA.joint || {};
+  var rows = isJ
+    ? ((J.card && J.card.rows) || []).map(function (x) { return { iso: x.iso, desc: x.desc, amt: x.amt, cat: x.cat, acct: 'CO Joint Card 7052', live: x.live }; })
+    : (DATA.txns || []).filter(function (t) { return t.cat === cat; });
   rows = rows.slice().sort(SHEET.sort === 'big'
     ? function (a, b) { return a.amt - b.amt; }
     : function (a, b) { return a.iso < b.iso ? 1 : a.iso > b.iso ? -1 : (b.live ? 1 : 0) - (a.live ? 1 : 0); });
   var spent = -rows.reduce(function (s, t) { return s + t.amt; }, 0);
-  var capRow = ((DATA.caps || {}).rows || []).filter(function (r) { return r.category === cat; })[0];
+  var capRow = isJ ? { cap: J.card.budget, actual: J.card.spent } : ((DATA.caps || {}).rows || []).filter(function (r) { return r.category === cat; })[0];
   var cap = capRow && capRow.cap > 0 ? capRow.cap : 0;
   var shown = capRow ? capRow.actual : spent;
   var sub = cap ? money(shown) + ' of ' + money(cap) + ' · ' + Math.round(shown / cap * 100) + '%' : money(shown) + ' this month';
-  sub += ' · ' + rows.length + ' purchase' + (rows.length === 1 ? '' : 's');
-  var h = '<div class="grab"></div><div class="sh-head" id="sheetHead"><div style="min-width:0"><h3>' + esc(cat) + '</h3><p>' + esc(sub) + '</p></div>' +
+  sub += isJ ? ' · your half ' + money(J.card.half) : ' · ' + rows.length + ' purchase' + (rows.length === 1 ? '' : 's');
+  var h = '<div class="grab"></div><div class="sh-head" id="sheetHead"><div style="min-width:0"><h3>' + esc(isJ ? 'Joint card' : cat) + '</h3><p>' + esc(sub) + '</p></div>' +
     '<button class="tool" id="sheetClose" aria-label="Close">✕</button></div>';
   if (cap) {
     var st = shown > cap ? 'over' : shown >= NEAR_AT * cap ? 'near' : 'ok', t = today();
@@ -512,13 +599,13 @@ function drawSheet() {
   }
   h += '<div class="seg" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="' + (SHEET.sort === 'new') + '">Newest</button><button data-sort="big" aria-pressed="' + (SHEET.sort === 'big') + '">Biggest</button></div>';
   h += '<div class="sh-body">';
-  if (!rows.length) h += '<div class="group"><div class="empty">No purchases in ' + esc(cat) + ' yet this month.</div></div>';
+  if (!rows.length) h += '<div class="group"><div class="empty">No purchases ' + (isJ ? 'on the joint card' : 'in ' + esc(cat)) + ' yet this month.</div></div>';
   else {
     h += '<div class="group">';
     rows.forEach(function (x) {
       var name = cleanDesc(x.desc), initial = (name.replace(/[^A-Za-z0-9]/g, '')[0] || '$').toUpperCase();
       h += '<div class="tx"><div class="av">' + esc(initial) + '</div><div class="mid"><div class="m">' + esc(name) + '</div>' +
-        '<div class="x">' + esc(niceDay(x.iso)) + ' · ' + esc(shortAcct(x.acct)) + (x.live ? '<span class="tag">Pending</span>' : '') + '</div></div>' +
+        '<div class="x">' + esc(niceDay(x.iso)) + ' · ' + esc(isJ ? (x.cat || 'Uncategorized') : shortAcct(x.acct)) + (x.live ? '<span class="tag">Pending</span>' : '') + '</div></div>' +
         '<div class="amt' + (x.amt > 0 ? ' in' : '') + '">' + signed(x.amt, true) + '</div></div>';
     });
     h += '</div><div class="note">Pending = from a card alert, not yet in your bank history.</div>';
@@ -561,7 +648,7 @@ function tipHtml() {
   return (!standalone && !off && !window.SAMPLE) ? '<div class="tip" id="tip"><span>Tap <b>Share</b>, then <b>Add to Home Screen</b> to open this like an app.</span><button id="tipx" aria-label="Dismiss">×</button></div>' : '';
 }
 function render() {
-  var fn = { budget: viewBudget, activity: viewActivity, trends: viewTrends, worth: viewWorth }[TAB];
+  var fn = { budget: viewBudget, home: viewHome, activity: viewActivity, trends: viewTrends, worth: viewWorth }[TAB];
   var html;
   try { html = fn(); } catch (e) { html = head('', 'Finance') + '<div class="msg"><b>This screen could not draw.</b><p>' + esc(e.message) + '</p></div>'; }
   html = html.replace('</div></div>', '</div></div>' + tipHtml()); // tip goes right under the header
@@ -577,6 +664,8 @@ function wire() {
   if (rb) rb.onclick = load;
   if (tx) tx.onclick = function () { try { localStorage.setItem('tipOff', '1'); } catch (e) {} $('tip').remove(); };
   Array.prototype.forEach.call(document.querySelectorAll('[data-cat]'), function (b) { b.onclick = function () { openSheet(b.getAttribute('data-cat')); }; });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-joint]'), function (b) { b.onclick = function () { openSheet(JCARD); }; });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-goto]'), function (b) { b.onclick = function () { goTab(b.getAttribute('data-goto')); }; });
 }
 function applyTheme(t, announce) {
   THEME = THEMES.indexOf(t) >= 0 ? t : 'auto';
@@ -615,13 +704,14 @@ function load() {
     .catch(showError);
 }
 
+function goTab(name) {
+  TAB = name;
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (x) { x.setAttribute('aria-selected', x.getAttribute('data-tab') === name ? 'true' : 'false'); });
+  window.scrollTo(0, 0);
+  if (DATA) render();
+}
 Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
-  b.onclick = function () {
-    TAB = b.getAttribute('data-tab');
-    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
-    window.scrollTo(0, 0);
-    if (DATA) render();
-  };
+  b.onclick = function () { goTab(b.getAttribute('data-tab')); };
 });
 $('sheetBg').onclick = closeSheet;
 // Refresh when the app comes back to the foreground after a while.

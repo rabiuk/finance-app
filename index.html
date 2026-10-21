@@ -431,11 +431,11 @@ function viewHome() {
 
   // Coming up
   if (J.upcoming && J.upcoming.length) {
-    h += sec('Coming up', money(J.dueTotal) + ' by ' + niceDay(J.horizonEnd)) + '<div class="group">';
+    h += sec('Upcoming bills', money(J.dueTotal) + ' due by ' + niceDay(J.horizonEnd)) + '<div class="group">';
     J.upcoming.forEach(function (u) {
       h += '<div class="row" style="min-height:58px"><div class="l"><div class="t" style="font-size:16px">' + esc(u.name) + '</div><div class="s">' + (u.late ? 'Not seen yet' : niceDay(u.iso) + (u.estimate ? ' · so far' : u.card ? ' · statement' : '')) + '</div></div><div class="a" style="font-size:16px">' + money(u.amount) + '</div></div>';
     });
-    h += '</div>';
+    h += '</div><div class="note">Paid from the joint debit, soonest first.</div>';
   }
   return h + '<div class="note">Joint debit numbers update after the Monday import. Joint card purchases show within minutes.</div>';
 }

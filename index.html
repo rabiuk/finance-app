@@ -380,7 +380,7 @@ function myBillsHtml(month) {
     h += '<div class="row"><div class="l"><div class="t">' + esc(b.name) + '</div><div class="s">' + esc(s) + '</div></div>' +
       '<div class="a' + (b.paid ? ' paid' : '') + '">' + (b.paid ? ICON_OK : '') + money(b.paid ? b.paidAmt : b.amount, true) + '</div></div>';
   });
-  h += '</div></div></div><div class="note">From checking 5321. Bank withdrawals show after the Monday import.</div>';
+  h += '</div></div></div><div class="note">From checking 5321. Bank withdrawals show after the Sunday import.</div>';
   return h;
 }
 
@@ -466,7 +466,7 @@ function viewHome() {
     });
     h += '</div><div class="note">Paid from the joint debit, soonest first.</div>';
   }
-  return h + '<div class="note">Joint debit numbers update after the Monday import. Joint card purchases show within minutes.</div>';
+  return h + '<div class="note">Joint debit numbers update after the Sunday import. Joint card purchases show within minutes.</div>';
 }
 
 // ---------------------------------------------------------------- Activity
@@ -483,7 +483,7 @@ function shortAcct(a) {
 }
 function viewActivity() {
   var L = DATA.live || [], h = head('Card purchases', 'Activity'), t = today();
-  if (!L.length) return h + '<div class="msg"><b>No new purchases</b><p>Card and debit purchases show up here within about 5 minutes. They move to your history after the Monday import.</p></div>';
+  if (!L.length) return h + '<div class="msg"><b>No new purchases</b><p>Card and debit purchases show up here within about 5 minutes. They move to your history after the Sunday import.</p></div>';
   var groups = [], byKey = {};
   L.forEach(function (x) {
     if (!byKey[x.date]) { byKey[x.date] = { key: x.date, items: [], total: 0 }; groups.push(byKey[x.date]); }
@@ -506,7 +506,7 @@ function viewActivity() {
     });
     h += '</div>';
   });
-  return h + '<div class="note">Live purchases from card alerts. They move to your history after the Monday import.</div>';
+  return h + '<div class="note">Live purchases from card alerts. They move to your history after the Sunday import.</div>';
 }
 
 // ---------------------------------------------------------------- Trends

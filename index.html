@@ -22,7 +22,7 @@
   --bg: #EDF0F7; --surface: #FFFFFF; --line: #DEE1EA; --line2: #C0C4CE; --track: #E4E8F0;
   --ink: #171A24; --ink2: #5E636F; --ink3: #818691;
   --hbg: #181D27; --hline: #181D27; --hink: #F3F5F9; --hink2: #A9AEB8; --htrack: #303541; --hout: #585D6A; --hacc: #A2BAFF; --hring: rgba(255,255,255,.14);
-  --barok: #5E78D9; --accT: #3C52B6; --accSoft: #E3EAFB; --pos: #3C52B6; --posTint: #E3EAFB;
+  --barok: #5E78D9; --accT: #3C52B6; --accSoft: #E3EAFB; --pos: #3C52B6; --posTint: #E3EAFB; --good: #1E9E57; --goodTint: #DDF3E5;
   --red: #C4513B; --redT: #AE422D; --amber: #9A6A0E; --amberT: #83590A; --green: #2E9052; --greenT: #10703A;
   --tabOn: #E3E8F3; --bar: rgba(255,255,255,.97);
   --c1: #A2BAFF; --c2: #6676A5; --c3: #404A67; --c4: #A9AEB8;
@@ -33,7 +33,7 @@
     --bg: #0D0F15; --surface: #171920; --line: #25282F; --line2: #373A43; --track: #25282F;
     --ink: #F0F2F6; --ink2: #A3A8B2; --ink3: #797D87;
     --hbg: #171920; --hline: #282B34; --hink: #F3F5F9; --hink2: #A3A8B2; --htrack: #282B34; --hout: #535864; --hacc: #A2BAFF;
-    --barok: #A2BAFF; --accT: #A2BAFF; --accSoft: #2A303F; --pos: #A2BAFF; --posTint: #2A303F;
+    --barok: #A2BAFF; --accT: #A2BAFF; --accSoft: #2A303F; --pos: #A2BAFF; --posTint: #2A303F; --good: #7ED9A0; --goodTint: #1F3328;
     --red: #F08A76; --redT: #F49B89; --amber: #E8BA67; --amberT: #EDC47E; --green: #77D199; --greenT: #8EE0AB;
     --tabOn: #31353F; --bar: rgba(35,38,46,.97);
     --c1: #A2BAFF; --c2: #6575A1; --c3: #3E4761; --c4: #A3A8B2;
@@ -44,7 +44,7 @@
   --bg: #0D0F15; --surface: #171920; --line: #25282F; --line2: #373A43; --track: #25282F;
   --ink: #F0F2F6; --ink2: #A3A8B2; --ink3: #797D87;
   --hbg: #171920; --hline: #282B34; --hink: #F3F5F9; --hink2: #A3A8B2; --htrack: #282B34; --hout: #535864; --hacc: #A2BAFF;
-  --barok: #A2BAFF; --accT: #A2BAFF; --accSoft: #2A303F; --pos: #A2BAFF; --posTint: #2A303F;
+  --barok: #A2BAFF; --accT: #A2BAFF; --accSoft: #2A303F; --pos: #A2BAFF; --posTint: #2A303F; --good: #7ED9A0; --goodTint: #1F3328;
   --red: #F08A76; --redT: #F49B89; --amber: #E8BA67; --amberT: #EDC47E; --green: #77D199; --greenT: #8EE0AB;
   --tabOn: #31353F; --bar: rgba(35,38,46,.97);
   --c1: #A2BAFF; --c2: #6575A1; --c3: #3E4761; --c4: #A3A8B2;
@@ -188,7 +188,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .pill.wait { background: color-mix(in oklch, var(--amber) 16%, transparent); color: var(--amber); }
 .pill.sm { height: 28px; font-size: 13px; padding: 0 10px; }
 .row .a.paid { display: flex; align-items: center; gap: 6px; }
-.ok-ic { width: 18px; height: 18px; flex: none; color: var(--pos); }
+.ok-ic { width: 18px; height: 18px; flex: none; color: var(--good); }
+.pill.good { background: var(--goodTint); color: var(--good); }
 .hero .num.st { font-size: 64px; margin: 10px 0 0 -2px; letter-spacing: -0.05em; }
 .hero .num.warn { color: #F2C46D; }
 .hero .num.good { color: #7ED9A0; }
@@ -382,7 +383,7 @@ function viewHome() {
     var late = !d.done && J.today > J.depositDue;
     h += '<div class="row"><div class="l"><div class="t">' + esc(who(d.who)) + '</div><div class="s">' +
       (d.done ? money(d.received) + ' in · ' + niceDay(d.dates[d.dates.length - 1]) : d.received > 0 ? money(d.received) + ' of ' + money(d.target) + ' in' : money(d.target) + ' due ' + niceDay(J.depositDue)) + '</div></div>' +
-      '<div class="pill sm ' + (d.done ? 'pos' : late ? 'neg' : 'wait') + '">' + (d.done ? 'In' : late ? 'Late' : 'Not in yet') + '</div></div>';
+      '<div class="pill sm ' + (d.done ? 'good' : late ? 'neg' : 'wait') + '">' + (d.done ? 'In' : late ? 'Late' : 'Not in yet') + '</div></div>';
   });
   h += '</div>';
 

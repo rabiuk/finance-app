@@ -399,7 +399,7 @@ function viewHome() {
     if (b.paid) s = 'Paid ' + niceDay(b.paidIso);
     else if (b.late) s = 'Not seen yet · due ' + niceDay(J.curMonth + '-' + ('0' + b.dueDay).slice(-2));
     else s = (b.auto ? 'AutoPay ' : 'Due ') + niceDay(b.due);
-    s += b.auto ? ' · card balance' : ' · your half ' + money(b.half);
+    s += b.auto ? (b.paid ? '' : b.estimate ? ' · so far' : ' · statement') : ' · your half ' + money(b.half);
     h += '<div class="row"><div class="l"><div class="t">' + esc(b.name) + '</div><div class="s">' + esc(s) + '</div></div>' +
       '<div class="a' + (b.paid ? ' paid' : '') + '">' + (b.paid ? ICON_OK : '') + money(b.paid ? b.paidAmt : b.amount) + '</div></div>';
   });
@@ -412,7 +412,9 @@ function viewHome() {
     '<button class="cat tap" data-joint="card"><div class="top"><div class="nm">Joint card · ' + esc(J.monthName) + '</div>' +
     '<div class="r"><div class="st ' + (cst === 'ok' ? '' : 'c-' + cst) + '">' + money(left) + (left < 0 ? ' over' : ' left') + '</div>' + CHEV + '</div></div>' +
     '<div class="bar"><i class="f-' + cst + '" style="width:' + pctW(p) + '"></i><u style="left:' + pctW(tick) + '"></u></div>' +
-    '<div class="bot"><span>' + money(C.spent) + ' of ' + money(C.budget) + ' · your half ' + money(C.half) + '</span><span>' + Math.round(p * 100) + '%</span></div></button></div>';
+    '<div class="bot"><span>' + money(C.spent) + ' of ' + money(C.budget) + ' · your half ' + money(C.half) + '</span><span>' + Math.round(p * 100) + '%</span></div></button></div>' +
+    (C.statement != null ? '<div class="note">' + (C.statementOpen ? 'Statement ' + money(C.statement, true) + ' paid by AutoPay ' + niceDay(C.statementDue) + '. ' : '') +
+      money(C.unbilled, true) + ' so far goes on the next bill.</div>' : '');
 
   // Pay back
   if (J.payback && J.payback.length) {
@@ -430,7 +432,7 @@ function viewHome() {
   if (J.upcoming && J.upcoming.length) {
     h += sec('Coming up', money(J.dueTotal) + ' by ' + niceDay(J.horizonEnd)) + '<div class="group">';
     J.upcoming.forEach(function (u) {
-      h += '<div class="row" style="min-height:58px"><div class="l"><div class="t" style="font-size:16px">' + esc(u.name) + '</div><div class="s">' + (u.late ? 'Not seen yet' : niceDay(u.iso)) + '</div></div><div class="a" style="font-size:16px">' + money(u.amount) + '</div></div>';
+      h += '<div class="row" style="min-height:58px"><div class="l"><div class="t" style="font-size:16px">' + esc(u.name) + '</div><div class="s">' + (u.late ? 'Not seen yet' : niceDay(u.iso) + (u.estimate ? ' · so far' : u.card ? ' · statement' : '')) + '</div></div><div class="a" style="font-size:16px">' + money(u.amount) + '</div></div>';
     });
     h += '</div>';
   }

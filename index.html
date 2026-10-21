@@ -337,14 +337,6 @@ function viewBudget() {
   if (!flex.length) h += '<div class="empty">No caps set yet. Add caps on the Goals tab of the sheet.</div>';
   h += '</div>';
 
-  if (fixed.length) {
-    h += sec('Fixed') + '<div class="group" style="padding:0 18px">';
-    fixed.forEach(function (r) {
-      h += '<button class="row tap" style="min-height:68px;display:flex;width:100%;text-align:left" data-goto="home"><div class="l"><div class="t">Joint deposit</div><div class="s">' + money(r.actual) + ' sent this month · see Home</div></div>' +
-        '<div style="display:flex;align-items:center;gap:8px"><div class="a">' + money(r.cap) + '<small>/mo</small></div>' + CHEV + '</div></button>';
-    });
-    h += '</div>';
-  }
   if (nocap.length) {
     var tot = nocap.reduce(function (s, r) { return s + r.actual; }, 0);
     h += sec('No cap', money(tot) + ' so far') + '<div class="group" style="padding:0 18px">';

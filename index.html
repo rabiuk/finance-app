@@ -188,6 +188,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .pill.wait { background: color-mix(in oklch, var(--amber) 16%, transparent); color: var(--amber); }
 .pill.sm { height: 28px; font-size: 13px; padding: 0 10px; }
 .row .a.paid { display: flex; align-items: center; gap: 6px; }
+.row.sub { min-height: 50px; padding-left: 16px; }
+.row.sub .t { font-size: 15px; font-weight: 600; }
+.row.sub .a { font-size: 15px; font-weight: 700; color: var(--ink2); }
 .ok-ic { width: 18px; height: 18px; flex: none; color: var(--good); }
 .pill.good { background: var(--goodTint); color: var(--good); }
 .hero .num.st { font-size: 64px; margin: 10px 0 0 -2px; letter-spacing: -0.05em; }
@@ -379,9 +382,21 @@ function savingsHeroHtml(S, spent, cap, left, perDay, daysLeft, tick, day, days)
     (pd.length ? row('Paychecks still coming', pd.map(niceDay).join(', ') + ' · about ' + money(S.typicalPay) + ' each', S.expectedIn) : '') +
     row('Spent so far', 'Your spending and joint deposits', -S.outActual) +
     row('Rest of your caps', 'Counted as if you spend it all', -S.capsLeft) +
-    (S.billsLeft > 0 ? row('Bills still due', (S.billsDue || []).join(', '), -S.billsLeft) : '') +
+    billsDueHtml(S, row) +
     '<div class="row"><div class="l"><div class="t"><b>' + (pj >= 0 ? 'On track to save' : 'On track to fall short') + '</b></div></div><div class="a"><b>' + signed(pj) + '</b></div></div>' +
     '</div></div></div>';
+  return h;
+}
+
+// Bills still due this month, each with the date it should come out.
+function billsDueHtml(S, row) {
+  if (!(S.billsLeft > 0)) return '';
+  var list = (S.billsDue || []).map(function (b) { return typeof b === 'string' ? { name: b } : b; });
+  var h = row('Bills still due', list.length + ' bill' + (list.length === 1 ? '' : 's') + ' before the month ends', -S.billsLeft);
+  list.forEach(function (b) {
+    h += '<div class="row sub"><div class="l"><div class="t">' + esc(b.name) + (b.due ? ' · ' + esc(niceDay(b.due)) : '') + '</div></div>' +
+      (b.amount ? '<div class="a">' + signed(-b.amount) + '</div>' : '') + '</div>';
+  });
   return h;
 }
 

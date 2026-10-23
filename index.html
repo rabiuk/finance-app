@@ -313,6 +313,10 @@ function viewBudget() {
   var n = { over: 0, near: 0, ok: 0 }; flex.forEach(function (r) { n[r.st]++; });
 
   var h = head(longDate(t), 'Budget');
+  var S = DATA.savings;
+  if (S && typeof S.projected === 'number') {
+    h += savingsHeroHtml(S, spent, cap, left, perDay, daysLeft, tick, day, days);
+  } else
   h += '<section class="hero"><div class="eb">' + (left >= 0 ? 'Left in your caps' : 'Over your caps') + '</div>' +
     '<div class="num b' + (left < 0 ? ' neg' : '') + '" style="' + fit(money(left), 100, 5) + '">' + money(left) + '</div>' +
     '<div class="sub2">' + (left > 0 && daysLeft > 0
@@ -347,6 +351,37 @@ function viewBudget() {
     });
     h += '</div>';
   }
+  return h;
+}
+
+// Projected savings (hero). The numbers come from readSavings_ in the data script:
+// money in (real income + paychecks still expected) minus money out (real spending + the rest of each cap + unpaid bills outside the caps).
+var SAVE_OPEN = false; try { SAVE_OPEN = localStorage.getItem('saveOpen') === '1'; } catch (e) {}
+function savingsHeroHtml(S, spent, cap, left, perDay, daysLeft, tick, day, days) {
+  var pj = S.projected, sf = S.savedSoFar, pd = S.paydaysLeft || [];
+  var payTxt = pd.length ? 'Next paycheck ' + niceDay(pd[0]) : 'All paychecks in';
+  var h = '<section class="hero"><div class="eb">' + (pj >= 0 ? 'On track to save' : 'On track to fall short') + '</div>' +
+    '<div class="num b' + (pj < 0 ? ' neg' : '') + '" style="' + fit(money(pj), 100, 5) + '">' + money(pj) + '</div>' +
+    '<div class="sub2">' + (sf >= 0
+      ? '<b>' + money(sf) + '</b><span>saved so far</span>'
+      : '<b>' + money(sf) + '</b><span>more out than in so far</span>') + '</div>' +
+    '<div class="meta"><span>' + esc(payTxt) + '</span><span>' + (S.paychecks >= 3 ? '3 paychecks' : 'Day ' + day + ' of ' + days) + '</span></div>' +
+    '<div class="pace"><i class="' + (left < 0 ? 'over' : '') + '" style="width:' + pctW(cap ? spent / cap : 0) + '"></i><u style="left:' + pctW(tick) + '"></u></div>' +
+    '<div class="meta"><span>' + (left >= 0 ? money(left) + ' left in your caps' : money(left) + ' over your caps') + '</span><span>' +
+    (left > 0 && daysLeft > 0 ? money(perDay) + ' a day' : '') + '</span></div></section>';
+  var row = function (t, s, amt) {
+    return '<div class="row"><div class="l"><div class="t">' + esc(t) + '</div>' + (s ? '<div class="s">' + esc(s) + '</div>' : '') + '</div><div class="a">' + signed(amt) + '</div></div>';
+  };
+  h += '<div class="group acc' + (SAVE_OPEN ? ' open' : '') + '" id="saveAcc" style="margin-top:12px"><button class="acc-h tap" id="saveBtn" aria-expanded="' + SAVE_OPEN + '" aria-controls="saveBody">' +
+    '<div class="l"><div class="t">How it\'s worked out</div><div class="s">Money in minus money out</div></div>' + CHEV + '</button>' +
+    '<div class="acc-b" id="saveBody"><div>' +
+    row('Money in so far', 'Pay and other income this month', S.inActual) +
+    (pd.length ? row('Paychecks still coming', pd.map(niceDay).join(', ') + ' · about ' + money(S.typicalPay) + ' each', S.expectedIn) : '') +
+    row('Spent so far', 'Your spending and joint deposits', -S.outActual) +
+    row('Rest of your caps', 'Counted as if you spend it all', -S.capsLeft) +
+    (S.billsLeft > 0 ? row('Bills still due', (S.billsDue || []).join(', '), -S.billsLeft) : '') +
+    '<div class="row"><div class="l"><div class="t"><b>' + (pj >= 0 ? 'On track to save' : 'On track to fall short') + '</b></div></div><div class="a"><b>' + signed(pj) + '</b></div></div>' +
+    '</div></div></div>';
   return h;
 }
 
@@ -721,6 +756,12 @@ function wire() {
     BILLS_OPEN = !BILLS_OPEN;
     $('billsAcc').classList.toggle('open', BILLS_OPEN); bb.setAttribute('aria-expanded', String(BILLS_OPEN));
     try { localStorage.setItem('billsOpen', BILLS_OPEN ? '1' : '0'); } catch (e) {}
+  };
+  var sb = $('saveBtn');
+  if (sb) sb.onclick = function () {
+    SAVE_OPEN = !SAVE_OPEN;
+    $('saveAcc').classList.toggle('open', SAVE_OPEN); sb.setAttribute('aria-expanded', String(SAVE_OPEN));
+    try { localStorage.setItem('saveOpen', SAVE_OPEN ? '1' : '0'); } catch (e) {}
   };
   var mb = $('myBillsBtn');
   if (mb) mb.onclick = function () {

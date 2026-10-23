@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- app v20 -->
+<!-- app v21 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Finance</title>
 <meta name="robots" content="noindex, nofollow">
@@ -360,7 +360,9 @@ function viewBudget() {
 
 // Projected savings (hero). The numbers come from readSavings_ in the data script:
 // money in (real income + paychecks still expected) minus money out (real spending + the rest of each cap + unpaid bills outside the caps).
-var SAVE_OPEN = false; try { SAVE_OPEN = localStorage.getItem('saveOpen') === '1'; } catch (e) {}
+// Under the hero: two folded rows, "Money in" and "Bills still due". Each opens to one line per item with its date.
+var FOLD = {}; try { FOLD.inAcc = localStorage.getItem('foldIn') === '1'; FOLD.billAcc = localStorage.getItem('foldBills') === '1'; } catch (e) {}
+var FOLD_KEY = { inAcc: 'foldIn', billAcc: 'foldBills' };
 function savingsHeroHtml(S, spent, cap, left, perDay, daysLeft, tick, day, days) {
   var pj = S.projected, sf = S.savedSoFar, pd = S.paydaysLeft || [];
   var payTxt = pd.length ? 'Next paycheck ' + niceDay(pd[0]) : 'All paychecks in';
@@ -373,33 +375,35 @@ function savingsHeroHtml(S, spent, cap, left, perDay, daysLeft, tick, day, days)
     '<div class="pace"><i class="' + (left < 0 ? 'over' : '') + '" style="width:' + pctW(cap ? spent / cap : 0) + '"></i><u style="left:' + pctW(tick) + '"></u></div>' +
     '<div class="meta"><span>' + (left >= 0 ? money(left) + ' left in your caps' : money(left) + ' over your caps') + '</span><span>' +
     (left > 0 && daysLeft > 0 ? money(perDay) + ' a day' : '') + '</span></div></section>';
-  var row = function (t, s, amt) {
-    return '<div class="row"><div class="l"><div class="t">' + esc(t) + '</div>' + (s ? '<div class="s">' + esc(s) + '</div>' : '') + '</div><div class="a">' + signed(amt) + '</div></div>';
+
+  var item = function (t, s, amt, cents) {
+    return '<div class="row"><div class="l"><div class="t">' + esc(t) + '</div><div class="s">' + esc(s) + '</div></div><div class="a">' + signed(amt, cents) + '</div></div>';
   };
-  h += '<div class="group acc' + (SAVE_OPEN ? ' open' : '') + '" id="saveAcc" style="margin-top:12px"><button class="acc-h tap" id="saveBtn" aria-expanded="' + SAVE_OPEN + '" aria-controls="saveBody">' +
-    '<div class="l"><div class="t">How it\'s worked out</div><div class="s">Money in minus money out</div></div>' + CHEV + '</button>' +
-    '<div class="acc-b" id="saveBody"><div>' +
-    row('Money in so far', 'Pay and other income this month', S.inActual) +
-    (pd.length ? row('Paychecks still coming', pd.map(niceDay).join(', ') + ' · about ' + money(S.typicalPay) + ' each', S.expectedIn) : '') +
-    row('Spent so far', 'Your spending and joint deposits', -S.outActual) +
-    row('Rest of your caps', 'Counted as if you spend it all', -S.capsLeft) +
-    billsDueHtml(S, row) +
-    '<div class="row"><div class="l"><div class="t"><b>' + (pj >= 0 ? 'On track to save' : 'On track to fall short') + '</b></div></div><div class="a"><b>' + signed(pj) + '</b></div></div>' +
-    '</div></div></div>';
+  // Money in: what landed (with dates) and paychecks still expected.
+  var ins = (S.incomes || []).map(function (x) { return item(x.name, 'Landed ' + niceDay(x.iso), x.amt, true); }).join('') +
+    pd.map(function (d) { return item('Paycheck', 'Expected ' + niceDay(d) + ' · estimate', S.typicalPay, false); }).join('');
+  var inSub = pd.length ? pd.length + ' paycheck' + (pd.length === 1 ? '' : 's') + ' still coming' : 'Everything is in';
+  // Bills still due, each with its due date.
+  var bl = (S.billsDue || []).map(function (b) { return typeof b === 'string' ? { name: b } : b; });
+  var bills = bl.map(function (b) { return item(b.name, b.due ? 'Due ' + niceDay(b.due) : 'Due this month', -(b.amount || 0), true); }).join('');
+  var billSub = bl.length ? bl.length + ' bill' + (bl.length === 1 ? '' : 's') + ' left this month' : 'All paid this month';
+
+  h += '<div class="group" style="margin-top:12px">' +
+    fold('inAcc', 'Money in', inSub, signed(S.inActual + S.expectedIn), ins) +
+    fold('billAcc', 'Bills still due', billSub, bl.length ? signed(-S.billsLeft) : money(0), bills, true) +
+    '</div>';
   return h;
+}
+// One folded row: tap the header to open or close its list.
+function fold(id, title, sub, total, body, divider) {
+  var open = !!FOLD[id] && !!body;
+  return '<div class="acc' + (open ? ' open' : '') + '" id="' + id + '"' + (divider ? ' style="border-top:1px solid var(--line)"' : '') + '>' +
+    '<button class="acc-h tap" data-fold="' + id + '" aria-expanded="' + open + '"' + (body ? '' : ' disabled') + '>' +
+    '<div class="l"><div class="t">' + esc(title) + '</div><div class="s">' + esc(sub) + '</div></div>' +
+    '<div style="display:flex;align-items:center;gap:8px"><div class="tot">' + total + '</div>' + (body ? CHEV : '') + '</div></button>' +
+    '<div class="acc-b"><div>' + body + '</div></div></div>';
 }
 
-// Bills still due this month, each with the date it should come out.
-function billsDueHtml(S, row) {
-  if (!(S.billsLeft > 0)) return '';
-  var list = (S.billsDue || []).map(function (b) { return typeof b === 'string' ? { name: b } : b; });
-  var h = row('Bills still due', list.length + ' bill' + (list.length === 1 ? '' : 's') + ' before the month ends', -S.billsLeft);
-  list.forEach(function (b) {
-    h += '<div class="row sub"><div class="l"><div class="t">' + esc(b.name) + (b.due ? ' · ' + esc(niceDay(b.due)) : '') + '</div></div>' +
-      (b.amount ? '<div class="a">' + signed(-b.amount) + '</div>' : '') + '</div>';
-  });
-  return h;
-}
 
 // My bills: Kenny's own monthly bills from the Recurring tab (rows with a Due day and a Match).
 // A bill counts as paid when a purchase this month matches its Match text.
@@ -534,6 +538,7 @@ function shortAcct(a) {
 }
 function viewActivity() {
   var L = DATA.live || [], h = head('Card purchases', 'Activity'), t = today();
+  h += monthSpentHtml(t);
   if (!L.length) return h + '<div class="msg"><b>No new purchases</b><p>Card and debit purchases show up here within about 5 minutes. They move to your history after the Sunday import.</p></div>';
   var groups = [], byKey = {};
   L.forEach(function (x) {
@@ -558,6 +563,17 @@ function viewActivity() {
     h += '</div>';
   });
   return h + '<div class="note">Live purchases from card alerts. They move to your history after the Sunday import.</div>';
+}
+
+// Spent this month: Kenny's own purchases this month (Transactions + Live), refunds taken off. Joint deposits are not purchases.
+function monthSpentHtml(t) {
+  var tx = DATA.txns;
+  if (!tx) return '';
+  var spent = -tx.reduce(function (s, x) { return s + (Number(x.amt) || 0); }, 0);
+  var n = tx.filter(function (x) { return x.amt < 0; }).length;
+  return '<div class="group" style="margin-bottom:6px"><div class="row" style="border-bottom:0"><div class="l"><div class="t">Spent this month</div>' +
+    '<div class="s">' + MONTHS[t.getMonth()] + ' so far · ' + n + ' purchase' + (n === 1 ? '' : 's') + '</div></div>' +
+    '<div class="a" style="font-size:22px">' + money(spent) + '</div></div></div>';
 }
 
 // ---------------------------------------------------------------- Trends
@@ -773,12 +789,13 @@ function wire() {
     $('billsAcc').classList.toggle('open', BILLS_OPEN); bb.setAttribute('aria-expanded', String(BILLS_OPEN));
     try { localStorage.setItem('billsOpen', BILLS_OPEN ? '1' : '0'); } catch (e) {}
   };
-  var sb = $('saveBtn');
-  if (sb) sb.onclick = function () {
-    SAVE_OPEN = !SAVE_OPEN;
-    $('saveAcc').classList.toggle('open', SAVE_OPEN); sb.setAttribute('aria-expanded', String(SAVE_OPEN));
-    try { localStorage.setItem('saveOpen', SAVE_OPEN ? '1' : '0'); } catch (e) {}
-  };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-fold]'), function (btn) {
+    btn.onclick = function () {
+      var id = btn.getAttribute('data-fold'); FOLD[id] = !FOLD[id];
+      $(id).classList.toggle('open', FOLD[id]); btn.setAttribute('aria-expanded', String(FOLD[id]));
+      try { localStorage.setItem(FOLD_KEY[id], FOLD[id] ? '1' : '0'); } catch (e) {}
+    };
+  });
   var mb = $('myBillsBtn');
   if (mb) mb.onclick = function () {
     MYBILLS_OPEN = !MYBILLS_OPEN;

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- app v23 -->
+<!-- app v24 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Finance</title>
 <meta name="robots" content="noindex, nofollow">
@@ -166,6 +166,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .tx .mid { flex: 1; min-width: 0; }
 .tx .m { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx .x { font-size: 13px; font-weight: 600; color: var(--ink2); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tag-pend { display: inline-block; font-size: 11px; font-weight: 700; line-height: 18px; padding: 0 7px; border-radius: 9px; background: var(--track); color: var(--ink2); margin-right: 6px; vertical-align: 1px; }
 .tx .amt { font-size: 16px; font-weight: 800; white-space: nowrap; }
 .tx .amt.in { color: var(--pos); }
 
@@ -563,7 +564,7 @@ function viewActivity() {
     g.items.forEach(function (x) {
       var initial = (String(x.description).replace(/[^A-Za-z0-9]/g, '')[0] || '$').toUpperCase();
       h += '<div class="tx"><div class="av">' + esc(initial) + '</div><div class="mid"><div class="m">' + esc(x.description) + '</div>' +
-        '<div class="x">' + esc(x.category || 'Uncategorized') + ' · ' + esc(shortAcct(x.account)) + '</div></div>' +
+        '<div class="x">' + (x.pending ? '<span class="tag-pend">Still pending</span>' : '') + esc(x.category || 'Uncategorized') + ' · ' + esc(shortAcct(x.account)) + '</div></div>' +
         '<div class="amt' + (x.amount > 0 ? ' in' : '') + '">' + signed(x.amount, true) + '</div></div>';
     });
     h += '</div>';

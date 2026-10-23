@@ -361,7 +361,7 @@ function savingsHeroHtml(S, spent, cap, left, perDay, daysLeft, tick, day, days)
   var pj = S.projected, sf = S.savedSoFar, pd = S.paydaysLeft || [];
   var payTxt = pd.length ? 'Next paycheck ' + niceDay(pd[0]) : 'All paychecks in';
   var h = '<section class="hero"><div class="eb">' + (pj >= 0 ? 'On track to save' : 'On track to fall short') + '</div>' +
-    '<div class="num b' + (pj < 0 ? ' neg' : '') + '" style="' + fit(money(pj), 100, 5) + '">' + money(pj) + '</div>' +
+    '<div class="num b' + (pj < 0 ? ' neg' : '') + '" style="' + fit(signed(pj), 100, 5) + '">' + signed(pj) + '</div>' +
     '<div class="sub2">' + (sf >= 0
       ? '<b>' + money(sf) + '</b><span>saved so far</span>'
       : '<b>' + money(sf) + '</b><span>more out than in so far</span>') + '</div>' +

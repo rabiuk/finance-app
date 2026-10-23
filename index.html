@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- app v21 -->
+<!-- app v22 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Finance</title>
 <meta name="robots" content="noindex, nofollow">
@@ -192,6 +192,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .row.sub { min-height: 50px; padding-left: 16px; }
 .row.sub .t { font-size: 15px; font-weight: 600; }
 .row.sub .a { font-size: 15px; font-weight: 700; color: var(--ink2); }
+.nest { margin: 2px 0 14px 4px; padding-left: 14px; border-left: 2px solid var(--line2); }
+.nest .row.sub { padding-left: 0; min-height: 54px; }
+.nest .row.sub .t { color: var(--ink2); }
+.nest .row.sub .s { font-size: 13px; color: var(--ink3); }
+.nest .row:first-child { border-top: 0 !important; }
+.nest .row:last-child { border-bottom: 0; }
 .ok-ic { width: 18px; height: 18px; flex: none; color: var(--good); }
 .pill.good { background: var(--goodTint); color: var(--good); }
 .hero .num.st { font-size: 64px; margin: 10px 0 0 -2px; letter-spacing: -0.05em; }
@@ -377,7 +383,7 @@ function savingsHeroHtml(S, spent, cap, left, perDay, daysLeft, tick, day, days)
     (left > 0 && daysLeft > 0 ? money(perDay) + ' a day' : '') + '</span></div></section>';
 
   var item = function (t, s, amt, cents) {
-    return '<div class="row"><div class="l"><div class="t">' + esc(t) + '</div><div class="s">' + esc(s) + '</div></div><div class="a">' + signed(amt, cents) + '</div></div>';
+    return '<div class="row sub"><div class="l"><div class="t">' + esc(t) + '</div><div class="s">' + esc(s) + '</div></div><div class="a">' + signed(amt, cents) + '</div></div>';
   };
   // Money in: what landed (with dates) and paychecks still expected.
   var ins = (S.incomes || []).map(function (x) { return item(x.name, 'Landed ' + niceDay(x.iso), x.amt, true); }).join('') +
@@ -401,7 +407,7 @@ function fold(id, title, sub, total, body, divider) {
     '<button class="acc-h tap" data-fold="' + id + '" aria-expanded="' + open + '"' + (body ? '' : ' disabled') + '>' +
     '<div class="l"><div class="t">' + esc(title) + '</div><div class="s">' + esc(sub) + '</div></div>' +
     '<div style="display:flex;align-items:center;gap:8px"><div class="tot">' + total + '</div>' + (body ? CHEV : '') + '</div></button>' +
-    '<div class="acc-b"><div>' + body + '</div></div></div>';
+    '<div class="acc-b"><div><div class="nest">' + body + '</div></div></div></div>';
 }
 
 

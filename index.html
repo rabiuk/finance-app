@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- app v24 -->
+<!-- app v25 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Finance</title>
 <meta name="robots" content="noindex, nofollow">
@@ -199,6 +199,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .nest .row.sub .s { font-size: 13px; color: var(--ink3); }
 .nest .row:first-child { border-top: 0 !important; }
 .nest .row:last-child { border-bottom: 0; }
+.nest + .row { border-top: 1px solid var(--line); }
 .ok-ic { width: 18px; height: 18px; flex: none; color: var(--good); }
 .pill.good { background: var(--goodTint); color: var(--good); }
 .hero .num.st { font-size: 64px; margin: 10px 0 0 -2px; letter-spacing: -0.05em; }
@@ -628,6 +629,25 @@ function viewTrends() {
 
 // ---------------------------------------------------------------- Net worth
 function niceAsOf(s) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? 'As of ' + MON[Number(m[2]) - 1] + ' ' + Number(m[3]) : 'As of last update'; }
+// What you owe: the last statement (still due, or paid) and what goes on the next one.
+function isoDay(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function cardNest(c, share, tIso) {
+  var item = function (t, s, a) {
+    return '<div class="row sub"><div class="l"><div class="t">' + esc(t) + '</div><div class="s">' + esc(s) + '</div></div><div class="a' + (a.paid ? ' paid' : '') + '">' + a.html + '</div></div>';
+  };
+  var half = share !== 1 ? ' · your half ' + money(c.left * share, true) : '';
+  var first;
+  if (c.left <= 0.005) {
+    first = item('Statement paid', money(c.statement, true) + ' · closed ' + niceDay(c.closed), { paid: true, html: ICON_OK + 'Paid' });
+  } else {
+    var s = c.due < tIso ? 'Not seen paid yet · was due ' + niceDay(c.due) : (c.autopay ? 'AutoPay pays it' : 'Pay by then');
+    if (c.paid > 0) s = money(c.paid, true) + ' paid early · ' + s;
+    first = item('Due ' + niceDay(c.due), s + half, { html: money(c.left, true) });
+  }
+  var next = item('Next statement', 'Closes about ' + niceDay(c.nextClose) + ' · includes pending', { html: money(c.newSince, true) });
+  return '<div class="nest" style="margin:0 0 4px 4px">' + first + next + '</div>';
+}
+
 function viewWorth() {
   var N = DATA.netWorth || {}, A = N.accounts || [];
   var have = A.filter(function (a) { return a.value > 0; }).sort(function (a, b) { return b.value - a.value; });
@@ -654,9 +674,12 @@ function viewWorth() {
   h += '</div>';
   if (owe.length) {
     h += sec('What you owe', money(oweSum), true) + '<div class="group">';
+    var CARDS = DATA.cards || [], tIso = isoDay(today());
     owe.forEach(function (a) {
       h += '<div class="row"><div class="l"><div class="t">' + esc(a.account) + '</div><div class="s">' + esc(a.type) +
         (a.share && a.share !== 1 ? ' · your ' + Math.round(a.share * 100) + '% share' : '') + '</div></div><div class="a">' + money(a.value) + '</div></div>';
+      var c = CARDS.filter(function (x) { return x.last4 && new RegExp(x.last4 + '\\s*$').test(a.account); })[0];
+      if (c) h += cardNest(c, a.share && a.share !== 1 ? a.share : 1, tIso);
     });
     h += '</div>';
   }

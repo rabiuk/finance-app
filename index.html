@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- app v25 -->
+<!-- app v26 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Finance</title>
 <meta name="robots" content="noindex, nofollow">
@@ -370,7 +370,8 @@ function viewBudget() {
 // money in (real income + paychecks still expected) minus money out (real spending + the rest of each cap + unpaid bills outside the caps).
 // Under the hero: two folded rows, "Money in" and "Bills still due". Each opens to one line per item with its date.
 var FOLD = {}; try { FOLD.inAcc = localStorage.getItem('foldIn') === '1'; FOLD.billAcc = localStorage.getItem('foldBills') === '1'; } catch (e) {}
-var FOLD_KEY = { inAcc: 'foldIn', billAcc: 'foldBills' };
+var FOLD_KEY = { inAcc: 'foldIn', billAcc: 'foldBills', card3607: 'foldCard3607', card7052: 'foldCard7052' };
+try { FOLD.card3607 = localStorage.getItem('foldCard3607') === '1'; FOLD.card7052 = localStorage.getItem('foldCard7052') === '1'; } catch (e) {}
 function savingsHeroHtml(S, spent, cap, left, perDay, daysLeft, tick, day, days) {
   var pj = S.projected, sf = S.savedSoFar, pd = S.paydaysLeft || [];
   var payTxt = pd.length ? 'Next paycheck ' + niceDay(pd[0]) : 'All paychecks in';
@@ -401,6 +402,15 @@ function savingsHeroHtml(S, spent, cap, left, perDay, daysLeft, tick, day, days)
     fold('billAcc', 'Bills still due', billSub, bl.length ? signed(-S.billsLeft) : money(0), bills, true) +
     '</div>';
   return h;
+}
+// A folded account row (What you owe): looks like a normal row, opens to the nested lines.
+function foldRow(id, title, subHtml, total, body, divider) {
+  var open = !!FOLD[id];
+  return '<div class="acc' + (open ? ' open' : '') + '" id="' + id + '"' + (divider ? ' style="border-top:1px solid var(--line)"' : '') + '>' +
+    '<button class="acc-h tap" data-fold="' + id + '" aria-expanded="' + open + '" style="min-height:70px">' +
+    '<div class="l"><div class="t" style="font-size:17px">' + esc(title) + '</div><div class="s">' + subHtml + '</div></div>' +
+    '<div style="display:flex;align-items:center;gap:8px"><div class="a" style="font-size:17px;font-weight:800">' + total + '</div>' + CHEV + '</div></button>' +
+    '<div class="acc-b"><div><div class="nest">' + body + '</div></div></div></div>';
 }
 // One folded row: tap the header to open or close its list.
 function fold(id, title, sub, total, body, divider) {
@@ -640,12 +650,12 @@ function cardNest(c, share, tIso) {
   if (c.left <= 0.005) {
     first = item('Statement paid', money(c.statement, true) + ' · closed ' + niceDay(c.closed), { paid: true, html: ICON_OK + 'Paid' });
   } else {
-    var s = c.due < tIso ? 'Not seen paid yet · was due ' + niceDay(c.due) : (c.autopay ? 'AutoPay pays it' : 'Pay by then');
+    var s = c.due < tIso ? 'Not seen paid yet · was due ' + niceDay(c.due) : (c.autopay ? 'AutoPay on' : 'AutoPay off');
     if (c.paid > 0) s = money(c.paid, true) + ' paid early · ' + s;
     first = item('Due ' + niceDay(c.due), s + half, { html: money(c.left, true) });
   }
-  var next = item('Next statement', 'Closes about ' + niceDay(c.nextClose) + ' · includes pending', { html: money(c.newSince, true) });
-  return '<div class="nest" style="margin:0 0 4px 4px">' + first + next + '</div>';
+  var next = item('Next statement', 'Closes ' + niceDay(c.nextClose) + ' · includes pending', { html: money(c.newSince, true) });
+  return first + next;
 }
 
 function viewWorth() {
@@ -675,11 +685,11 @@ function viewWorth() {
   if (owe.length) {
     h += sec('What you owe', money(oweSum), true) + '<div class="group">';
     var CARDS = DATA.cards || [], tIso = isoDay(today());
-    owe.forEach(function (a) {
-      h += '<div class="row"><div class="l"><div class="t">' + esc(a.account) + '</div><div class="s">' + esc(a.type) +
-        (a.share && a.share !== 1 ? ' · your ' + Math.round(a.share * 100) + '% share' : '') + '</div></div><div class="a">' + money(a.value) + '</div></div>';
+    owe.forEach(function (a, i) {
+      var sub = esc(a.type) + (a.share && a.share !== 1 ? ' · your ' + Math.round(a.share * 100) + '% share' : '');
       var c = CARDS.filter(function (x) { return x.last4 && new RegExp(x.last4 + '\\s*$').test(a.account); })[0];
-      if (c) h += cardNest(c, a.share && a.share !== 1 ? a.share : 1, tIso);
+      if (c) { h += foldRow('card' + c.last4, a.account, sub, money(a.value), cardNest(c, a.share && a.share !== 1 ? a.share : 1, tIso), i > 0); return; }
+      h += '<div class="row"><div class="l"><div class="t">' + esc(a.account) + '</div><div class="s">' + sub + '</div></div><div class="a">' + money(a.value) + '</div></div>';
     });
     h += '</div>';
   }
